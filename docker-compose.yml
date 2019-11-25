@@ -17,9 +17,9 @@ services:
         ports:
             - '32400:32400/tcp'
         volumes:
-            - '${CONFIG_DIR}/plex:/config'
-            - '${MEDIA_DIR}:/media'
-            - '/tmp:/tmp'
+          - 'plex:/config:rw' 
+          - '${MEDIA_DIR}:/media'
+          - '/tmp:/tmp'
         labels:
             traefik.enable: true
             traefik.docker.network: traefik
@@ -41,7 +41,7 @@ services:
         networks:
             - traefik
         volumes:
-            - '${CONFIG_DIR}/nzbget:/config'
+            - 'nzbget:/config:rw'
             - '${DOWNLOADS_DIR}:/downloads'
         labels:
             traefik.enable: true
@@ -62,7 +62,7 @@ services:
         networks:
             - traefik
         volumes:
-            - '${CONFIG_DIR}/sonarr:/config'
+            - 'sonarr:/config:rw'
             - '${DOWNLOADS_DIR}:/downloads'
             - '${MEDIA_DIR}:/media'
         labels:
@@ -87,7 +87,7 @@ services:
         networks:
             - traefik
         volumes:
-            - '${CONFIG_DIR}/radarr:/config'
+            - 'radarr:/config:rw'
             - '${DOWNLOADS_DIR}:/downloads'
             - '${MEDIA_DIR}:/media'
         labels:
@@ -112,7 +112,7 @@ services:
         networks:
             - traefik
         volumes:
-            - '${CONFIG_DIR}/hydra:/config'
+            - 'hydra:/config:rw'
             - '${DOWNLOADS_DIR}:/downloads'
         labels:
             traefik.enable: true
@@ -127,11 +127,15 @@ services:
         image: traefik:v2.1.0-rc2
         restart: unless-stopped
         environment:
+            CF_API_EMAIL: jarnet@gmail.com
+            CF_API_KEY: a0ad7a33547daa0fe0b15ca1d68f8b700d08c
+        environment:
             TZ: '${TZ}'
         networks:
             - traefik
         ports:
             - '80:80/tcp'
+            - '8080:8080/tcp'
             - '443:443/tcp'
         volumes:
             - '/var/run/docker.sock:/var/run/docker.sock:ro'
@@ -140,6 +144,7 @@ services:
             - "--log.level=INFO"
             - "--api=true"
             - "--global.sendanonymoususage=false"
+            - "--api.insecure"
             - "--serverstransport.insecureskipverify"
             - "--entrypoints.http.address=:80"
             - "--entrypoints.https.address=:443"
@@ -153,7 +158,11 @@ services:
             traefik.enable: true
             traefik.docker.network: traefik
             traefik.http.routers.traefik.entrypoints: https
-            traefik.http.routers.traefik.tls.certresolver: tlschallenge
+            traefik.http.routers.traefik.tls: true
+            traefik.http.routers.traefik.tls.certresolver: cloudflare
+            traefik.http.routers.traefik.tls.domains[0].main: arnets.net
+            traefik.http.routers.traefik.tls.domains[0].sans: *.arnets.net
+            traefik.http.routers.traefik-secure.service=api@internal
             traefik.http.routers.traefik.rule: Host(`traefik.${ACME_DOMAIN}`)
             traefik.http.routers.traefik.middlewares: secureheaders, basicauth
             traefik.http.routers.traefik.service: api@internal
@@ -174,6 +183,48 @@ services:
             traefik.http.middlewares.secureheaders.headers.customResponseHeaders.X-Robots-Tag: none
             traefik.http.middlewares.secureheaders.headers.customFrameOptionsValue: SAMEORIGIN
 
+    unifi:
+        image: linuxserver/unifi-controller
+        container_name: unifi
+        environment:
+            PUID: '${PUID}'
+            PGID: '${PGID}'
+            MEM_LIMIT: '1024M' #optional
+            TZ: '${TZ}'
+        volumes:
+            - 'unifi:/config:rw'
+        networks:
+            - traefik
+        restart: unless-stopped
+        labels:
+            traefik.enable: true
+            traefik.docker.network: traefik
+            traefik.http.routers.unifi.entrypoints: https
+            traefik.http.routers.unifi.tls.certresolver: tlschallenge
+            traefik.http.routers.unifi.rule: Host(`unifi.${ACME_DOMAIN}`)
+
+    headphones:
+        image: linuxserver/headphones
+        container_name: headphones
+        environment:
+            PUID: '${PUID}'
+            PGID: '${PGID}'
+            TZ: '${TZ}'
+        volumes:
+            - 'headphones:/config:rw'
+            - '${DOWNLOADS_DIR}:/downloads'
+            - '${MEDIA_DIR}:/media/music'
+        networks:
+            - traefik
+        restart: unless-stopped
+        labels:
+            traefik.enable: true
+            traefik.docker.network: traefik
+            traefik.http.routers.headphones.entrypoints: https
+            traefik.http.routers.headphones.tls.certresolver: tlschallenge
+            traefik.http.routers.headphones.rule: Host(`headphones.${ACME_DOMAIN}`)
+
+
 networks:
     traefik:
         name: traefik
@@ -181,3 +232,10 @@ networks:
 
 volumes:
     traefik:
+    hydra:
+    nzbget:
+    plex:
+    sonarr:
+    radarr:
+    unifi:
+    headphones:

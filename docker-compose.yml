@@ -127,8 +127,8 @@ services:
         image: traefik:v2.1.0-rc2
         restart: unless-stopped
         environment:
-            CF_API_EMAIL: jarnet@gmail.com
-            CF_API_KEY: a0ad7a33547daa0fe0b15ca1d68f8b700d08c
+            CF_API_EMAIL: '${CF_API_EMAIL}'
+            CF_API_KEY: '${CF_API_KEY}'
         environment:
             TZ: '${TZ}'
         networks:
